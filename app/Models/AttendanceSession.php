@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\CarbonImmutable;
 class AttendanceSession extends Model {
  protected $fillable=['section_id','teacher_profile_id','created_by','session_date','name','starts_at','ends_at','status'];
- protected function casts():array{return ['session_date'=>'date'];}
+ protected function casts():array{return ['session_date'=>'date','starts_at'=>'immutable_datetime','ends_at'=>'immutable_datetime'];}
  public function section():BelongsTo{return $this->belongsTo(Section::class);}
  public function teacherProfile():BelongsTo{return $this->belongsTo(TeacherProfile::class);}
  public function creator():BelongsTo{return $this->belongsTo(User::class,'created_by');}
@@ -15,14 +15,10 @@ class AttendanceSession extends Model {
  public function isEditableByTeacher(?CarbonImmutable $now=null):bool {
   if($this->status!=='open'||$this->session_date->isAfter(today()))return false;
   $now??=CarbonImmutable::now(config('app.timezone'));
-  if(!$this->session_date->isSameDay($now))return false;
-  if($this->starts_at){
-   $startsAt=CarbonImmutable::parse($this->session_date->toDateString().' '.$this->starts_at,config('app.timezone'));
-   if($now->lt($startsAt))return false;
-  }
-  if(!$this->ends_at)return true;
-  $endsAt=CarbonImmutable::parse($this->session_date->toDateString().' '.$this->ends_at,config('app.timezone'));
-  return $now->lt($endsAt);
+  if(!$this->starts_at&&!$this->ends_at&&!$this->session_date->isSameDay($now))return false;
+  if($this->starts_at&&$now->lt($this->starts_at))return false;
+  if($this->ends_at&&$now->gte($this->ends_at))return false;
+  return true;
  }
 
  public function attendanceReportSummary():array {

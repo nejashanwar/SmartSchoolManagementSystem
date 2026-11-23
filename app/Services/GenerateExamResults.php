@@ -14,11 +14,29 @@ class GenerateExamResults
 {
     public function generate(Exam $exam, User $actor): int
     {
+        return $this->generateResults($exam, $actor, true, true);
+    }
+
+    public function generateFromSubmittedMarks(Exam $exam, User $actor): int
+    {
+        if (in_array($exam->status, ['completed', 'published'], true)) {
+            return 0;
+        }
+
+        if ($exam->subjects()->whereNotIn('marks_status', ['submitted', 'approved'])->exists()) {
+            return 0;
+        }
+
+        return $this->generateResults($exam, $actor, false, false);
+    }
+
+    private function generateResults(Exam $exam, User $actor, bool $requireApproval, bool $completeExam): int
+    {
         if ($exam->status === 'published') {
             throw ValidationException::withMessages(['exam' => 'Published results cannot be regenerated.']);
         }
 
-        return DB::transaction(function () use ($exam, $actor): int {
+        return DB::transaction(function () use ($exam, $actor, $requireApproval, $completeExam): int {
             $exam->load(['section.students', 'subjects.subject', 'subjects.components.marks']);
             $students = $exam->section->students;
 
@@ -36,8 +54,9 @@ class GenerateExamResults
                 $maximumMarks = 0.0;
 
                 foreach ($exam->subjects as $examSubject) {
-                    if ($examSubject->marks_status !== 'approved') {
-                        throw ValidationException::withMessages(['marks' => "The {$examSubject->subject->name} marks register must be approved by Admin before generating results."]);
+                    $allowedRegisterStatuses = $requireApproval ? ['approved'] : ['submitted', 'approved'];
+                    if (! in_array($examSubject->marks_status, $allowedRegisterStatuses, true)) {
+                        throw ValidationException::withMessages(['marks' => "The {$examSubject->subject->name} marks register is not ready for result calculation."]);
                     }
 
                     if ($examSubject->components->isEmpty()) {
@@ -52,8 +71,9 @@ class GenerateExamResults
                     $subjectPercentage = 0.0;
                     foreach ($examSubject->components as $component) {
                         $mark = $component->marks->firstWhere('student_id', $student->id);
-                        if (! $mark || $mark->status !== 'verified') {
-                            throw ValidationException::withMessages(['marks' => "Every student must have an Admin-approved {$component->name} mark for {$examSubject->subject->name}."]);
+                        $allowedMarkStatuses = $requireApproval ? ['verified'] : ['submitted', 'verified'];
+                        if (! $mark || ! in_array($mark->status, $allowedMarkStatuses, true)) {
+                            throw ValidationException::withMessages(['marks' => "Every student must have a submitted {$component->name} mark for {$examSubject->subject->name}."]);
                         }
 
                         $maxMarks = (float) $component->max_marks;
@@ -96,12 +116,82 @@ class GenerateExamResults
                 ]);
             }
 
-            if ($exam->status === 'draft') {
+            $rank = 0;
+            $position = 0;
+            $previousAverage = null;
+            $results = $exam->results()
+                ->whereIn('student_id', $students->modelKeys())
+                ->orderByDesc('average_percentage')
+                ->orderBy('student_id')
+                ->get();
+
+            foreach ($results as $result) {
+                $position++;
+                $average = number_format((float) $result->average_percentage, 2, '.', '');
+                if ($average !== $previousAverage) {
+                    $rank = $position;
+                    $previousAverage = $average;
+                }
+                $result->update(['section_rank' => $rank]);
+            }
+
+            if ($completeExam && $exam->status === 'draft') {
                 $exam->update(['status' => 'completed']);
+            }
+
+            if ($exam->term_id) {
+                $this->calculateCumulativeForSecondSemester($exam);
             }
 
             return $students->count();
         });
+    }
+
+    private function calculateCumulativeForSecondSemester(Exam $exam): void
+    {
+        $term = $exam->term;
+        if (! $term) return;
+
+        $terms = $term->academicYear->terms()->orderBy('sort_order')->get();
+        if ($terms->count() !== 2 || (int) $terms->last()->id !== (int) $term->id) return;
+        $firstTerm = $terms->first();
+
+        $firstSemesterExams = Exam::query()
+            ->where('section_id', $exam->section_id)
+            ->where('term_id', $firstTerm->id)
+            ->whereHas('results')
+            ->get();
+        if ($firstSemesterExams->count() !== 1) return;
+
+        $firstResults = Result::query()->where('exam_id', $firstSemesterExams->first()->id)->get()->keyBy('student_id');
+        $secondResults = Result::query()->where('exam_id', $exam->id)->get()->keyBy('student_id');
+        $rankable = [];
+
+        foreach ($secondResults as $studentId => $secondResult) {
+            $firstResult = $firstResults->get($studentId);
+            if (! $firstResult) {
+                $secondResult->update(['cumulative_average_percentage' => null, 'cumulative_rank' => null]);
+                continue;
+            }
+
+            $cumulativeAverage = round(((float) $firstResult->average_percentage + (float) $secondResult->average_percentage) / 2, 2);
+            $secondResult->update(['cumulative_average_percentage' => $cumulativeAverage, 'cumulative_rank' => null]);
+            $rankable[$studentId] = ['result' => $secondResult, 'average' => $cumulativeAverage];
+        }
+
+        uasort($rankable, fn (array $left, array $right): int => ($right['average'] <=> $left['average']) ?: ($left['result']->student_id <=> $right['result']->student_id));
+        $rank = 0;
+        $position = 0;
+        $previousAverage = null;
+        foreach ($rankable as $row) {
+            $position++;
+            $averageKey = number_format($row['average'], 2, '.', '');
+            if ($averageKey !== $previousAverage) {
+                $rank = $position;
+                $previousAverage = $averageKey;
+            }
+            $row['result']->update(['cumulative_rank' => $rank]);
+        }
     }
 
     public function publish(Exam $exam, User $actor): int
@@ -109,6 +199,8 @@ class GenerateExamResults
         if ($exam->status === 'published') {
             throw ValidationException::withMessages(['exam' => 'This examination is already published.']);
         }
+
+        $this->ensureEarlierSemesterIsPublished($exam);
 
         $count = $this->generate($exam, $actor);
         DB::transaction(function () use ($exam, $actor): void {
@@ -118,5 +210,30 @@ class GenerateExamResults
         });
 
         return $count;
+    }
+
+    private function ensureEarlierSemesterIsPublished(Exam $exam): void
+    {
+        $term = $exam->term;
+        if (! $term) return;
+
+        $terms = $term->academicYear->terms()->orderBy('sort_order')->get();
+        if ($terms->count() !== 2 || (int) $terms->last()->id !== (int) $term->id) return;
+        $firstTerm = $terms->first();
+
+        $firstSemesterExams = Exam::query()
+            ->where('section_id', $exam->section_id)
+            ->where('term_id', $firstTerm->id)
+            ->get();
+
+        if ($firstSemesterExams->count() !== 1 || $firstSemesterExams->first()->status !== 'published') {
+            throw ValidationException::withMessages(['exam' => 'Publish the complete first-semester results before publishing the final annual report card.']);
+        }
+
+        $expectedStudents = $exam->section->students()->count();
+        $publishedFirstResults = $firstSemesterExams->first()->results()->where('status', 'published')->count();
+        if ($expectedStudents === 0 || $publishedFirstResults !== $expectedStudents) {
+            throw ValidationException::withMessages(['exam' => 'First-semester results must be published for every student before the annual card can be completed.']);
+        }
     }
 }

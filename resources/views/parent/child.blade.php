@@ -44,13 +44,14 @@
             <p>No results have been published yet.</p>
         @else
             <table>
-                <thead><tr><th>Examination</th><th>Term</th><th>Average</th><th>Grade</th><th>Report card</th></tr></thead>
+                <thead><tr><th>Examination</th><th>Term</th><th>Average</th><th>Section rank</th><th>Grade</th><th>Report card</th></tr></thead>
                 <tbody>
                 @foreach($results as $result)
                     <tr>
                         <td>{{ $result->exam->name }}</td>
                         <td>{{ $result->exam->term?->name ?? '—' }}</td>
                         <td>{{ $result->average_percentage }}%</td>
+                        <td>{{ $result->section_rank ?? '—' }}</td>
                         <td>{{ $result->grade_label }}</td>
                         <td><a href="{{ route('parent.results.show',[$student,$result]) }}">Print</a></td>
                     </tr>

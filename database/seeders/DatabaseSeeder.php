@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(AccessControlSeeder::class);
         $this->call(GradeSeeder::class);
+        $this->call(GradeScaleSeeder::class);
         $this->call(TeacherProfileSeeder::class);
         $this->call(ParentProfileSeeder::class);
     }

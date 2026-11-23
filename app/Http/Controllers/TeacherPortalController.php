@@ -9,6 +9,9 @@ use App\Models\AuditEvent;
 use App\Models\ExamSubject;
 use App\Models\ExamAssessmentComponent;
 use App\Models\Student;
+use App\Models\Term;
+use App\Services\TermMarksWorkflow;
+use App\Services\GenerateExamResults;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,7 +61,7 @@ class TeacherPortalController extends Controller
         return redirect()->route('teacher.dashboard');
     }
 
-    public function dashboard(): View
+    public function dashboard(TermMarksWorkflow $termWorkflow): View
     {
         /** @var User $user */
         $user = Auth::user();
@@ -66,8 +69,19 @@ class TeacherPortalController extends Controller
         abort_unless($user->hasRole('TEACHER'), 403);
 
         $teacher = $user->teacherProfile()->where('employment_status', 'active')
-            ->with(['assignments.section.grade', 'assignments.section.academicYear', 'assignments.section.students', 'assignments.section.exams.subjects.subject', 'assignments.section.exams.subjects.components.marks', 'assignments.subject'])
+            ->with(['assignments.term', 'assignments.section.grade', 'assignments.section.academicYear', 'assignments.section.students', 'assignments.section.exams.term', 'assignments.section.exams.subjects.subject', 'assignments.section.exams.subjects.components.marks', 'assignments.subject'])
             ->firstOrFail();
+
+        $termEntryOpen = [];
+        foreach ($teacher->assignments as $assignment) {
+            foreach ($assignment->section->exams as $exam) {
+                $assignmentMatchesTerm = ! $assignment->term_id || (int) $assignment->term_id === (int) $exam->term_id;
+                if (! $assignmentMatchesTerm) continue;
+                foreach ($exam->subjects->where('subject_id', $assignment->subject_id) as $examSubject) {
+                    $termEntryOpen[$examSubject->id] = $termWorkflow->canEnterMarks($exam);
+                }
+            }
+        }
 
         $attendanceSessions = AttendanceSession::query()->with(['section.grade', 'section.students', 'records.recorder'])
             ->where('teacher_profile_id', $teacher->id)
@@ -76,7 +90,7 @@ class TeacherPortalController extends Controller
             ->orderByDesc('session_date')->get();
         $attendanceRowCount = $attendanceSessions->sum(fn (AttendanceSession $session): int => $session->section->students->count());
 
-        return view('teacher.dashboard', compact('teacher', 'attendanceSessions', 'attendanceRowCount'));
+        return view('teacher.dashboard', compact('teacher', 'attendanceSessions', 'attendanceRowCount', 'termEntryOpen'));
     }
 
     public function storeAttendance(Request $request): RedirectResponse
@@ -104,7 +118,11 @@ class TeacherPortalController extends Controller
 
         AuditEvent::record('attendance.recorded', $record, ['attendance_session_id' => $session->id, 'student_id' => $student->id, 'section_id' => $session->section_id, 'date' => $session->session_date->toDateString(), 'status' => $data['status']]);
 
-        return back()->with('status', 'Attendance saved.');
+        $rowId = 'attendance-'.$session->id.'-'.$student->id.'-row';
+
+        return back()
+            ->with('attendance_saved_'.$session->id.'_'.$student->id, 'Attendance saved successfully.')
+            ->withFragment($rowId);
     }
 
     public function storeMark(Request $request): RedirectResponse
@@ -149,7 +167,11 @@ class TeacherPortalController extends Controller
 
         AuditEvent::record('exam.marks_saved', $examSubject, ['student_id' => $student->id, 'marks' => $saved]);
 
-        return back()->with('status', 'Student marks saved as a draft.');
+        $rowId = 'marks-'.$examSubject->id.'-'.$student->id.'-row';
+
+        return back()
+            ->with('marks_saved_'.$examSubject->id.'_'.$student->id, 'Student marks saved successfully as a draft.')
+            ->withFragment($rowId);
     }
 
     public function saveAssessmentComponents(Request $request, ExamSubject $examSubject): RedirectResponse
@@ -214,7 +236,7 @@ class TeacherPortalController extends Controller
         return back()->with('status', 'Assessment types and weights saved. Weights total 100%.');
     }
 
-    public function submitAssessmentMarks(Request $request, ExamSubject $examSubject): RedirectResponse
+    public function submitAssessmentMarks(Request $request, ExamSubject $examSubject, TermMarksWorkflow $termWorkflow): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->hasRole('TEACHER'), 403);
@@ -225,14 +247,26 @@ class TeacherPortalController extends Controller
 
         $componentIds = $examSubject->components->modelKeys();
         $studentIds = $examSubject->exam->section->students->modelKeys();
-        abort_if($componentIds === [] || $studentIds === [], 422, 'Add assessment types and students before submitting marks.');
+        if ($componentIds === [] || $studentIds === []) {
+            return $this->redirectToMarksRegisterError($examSubject, 'Add assessment types and students before submitting marks.');
+        }
+
         $marks = $examSubject->marks()->whereIn('assessment_component_id', $componentIds)->whereIn('student_id', $studentIds)->get();
         $expectedMarks = count($componentIds) * count($studentIds);
-        abort_if($marks->count() !== $expectedMarks, 422, 'Enter marks for every student in every assessment type before submitting.');
+        if ($marks->count() !== $expectedMarks) {
+            return $this->redirectToMarksRegisterError($examSubject, 'Enter marks for every student in every assessment type before submitting.');
+        }
+
         foreach ($marks as $mark) {
             $component = $examSubject->components->firstWhere('id', $mark->assessment_component_id);
-            abort_unless($component, 422, 'A saved mark refers to an assessment type outside this subject.');
-            abort_if((float) $mark->marks_obtained > (float) $component->max_marks, 422, "A saved {$component->name} mark exceeds its maximum.");
+
+            if (! $component) {
+                return $this->redirectToMarksRegisterError($examSubject, 'A saved mark refers to an assessment type outside this subject.');
+            }
+
+            if ((float) $mark->marks_obtained > (float) $component->max_marks) {
+                return $this->redirectToMarksRegisterError($examSubject, "A saved {$component->name} mark exceeds its maximum.");
+            }
         }
 
         DB::transaction(function () use ($examSubject, $user): void {
@@ -241,13 +275,52 @@ class TeacherPortalController extends Controller
             AuditEvent::record('exam.marks_submitted', $examSubject, ['submitted_by' => $user->id, 'mark_count' => $examSubject->marks()->count()]);
         });
 
-        return back()->with('status', 'Marks register submitted to Admin for review.');
+        $status = 'Marks register submitted to Admin for review.';
+        if ($examSubject->exam->term && $termWorkflow->allRegistersSubmitted($examSubject->exam->section, $examSubject->exam->term)) {
+            $nextTerm = Term::query()
+                ->where('academic_year_id', $examSubject->exam->academic_year_id)
+                ->where('sort_order', '>', $examSubject->exam->term->sort_order)
+                ->orderBy('sort_order')
+                ->first();
+
+            if ($nextTerm && $termWorkflow->isTermOpen($nextTerm, $examSubject->exam->section)) {
+                $status .= ' All registers are in; '.$nextTerm->name.' marks entry is now open.';
+            }
+
+            $termIds = Term::query()
+                ->where('academic_year_id', $examSubject->exam->academic_year_id)
+                ->orderBy('sort_order')
+                ->pluck('id');
+
+            foreach ($termIds as $termId) {
+                $term = Term::query()->find($termId);
+                if (! $term || ! $termWorkflow->allRegistersSubmitted($examSubject->exam->section, $term)) continue;
+
+                foreach ($examSubject->exam->section->exams()->where('term_id', $term->id)->get() as $termExam) {
+                    try {
+                        app(GenerateExamResults::class)->generateFromSubmittedMarks($termExam, $user);
+                    } catch (ValidationException) {
+                        // Submission remains successful; Admin can resolve grade-scale or data issues before final calculation.
+                    }
+                }
+            }
+        }
+
+        return back()->with('status', $status);
+    }
+
+    private function redirectToMarksRegisterError(ExamSubject $examSubject, string $message): RedirectResponse
+    {
+        return back()
+            ->withErrors(['marks_register_'.$examSubject->id => $message])
+            ->withFragment('marks-register-error-'.$examSubject->id);
     }
 
     private function authorizeExamSubject(\App\Models\TeacherProfile $profile, ExamSubject $examSubject): void
     {
         abort_unless(! in_array($examSubject->exam->status, ['completed', 'published'], true), 403, 'Completed or published examination marks are locked.');
-        abort_unless($profile->assignments()->where('section_id', $examSubject->exam->section_id)->where('subject_id', $examSubject->subject_id)->exists(), 403);
+        abort_unless(app(TermMarksWorkflow::class)->teacherOwns($profile, $examSubject), 403);
+        abort_unless(app(TermMarksWorkflow::class)->canEnterMarks($examSubject->exam), 403, 'This semester is locked until every teacher has submitted the previous semester registers.');
     }
 
     public function logout(Request $request): RedirectResponse

@@ -6,6 +6,7 @@ use App\Models\AuditEvent;
 use App\Models\Exam;
 use App\Models\Result;
 use App\Services\StudentAttendanceReport;
+use App\Services\BuildStudentReportCard;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,6 +68,12 @@ class StudentPortalController extends Controller
         }
 
         $student = $user->student()->with(['grade', 'academicYear', 'section', 'application'])->firstOrFail();
+        $subjectAssignments = $student->section
+            ? $student->section->teacherAssignments()
+                ->with(['subject', 'teacherProfile.user'])
+                ->orderBy('subject_id')
+                ->get()
+            : collect();
         $attendanceSummary = $student->attendanceRecords()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
@@ -78,7 +85,7 @@ class StudentPortalController extends Controller
         $results = $student->results()->where('status', 'published')->with(['exam.examType', 'exam.term'])->orderByDesc('published_at')->get();
         $monthlyAttendance = $attendanceReport->for($student);
 
-        return view('student.dashboard', compact('student', 'attendanceSummary', 'exams', 'results', 'monthlyAttendance'));
+        return view('student.dashboard', compact('student', 'subjectAssignments', 'attendanceSummary', 'exams', 'results', 'monthlyAttendance'));
     }
 
     public function attendance(Request $request, StudentAttendanceReport $attendanceReport): View|RedirectResponse
@@ -92,7 +99,7 @@ class StudentPortalController extends Controller
         return view('student.attendance-report', compact('student', 'report'));
     }
 
-    public function reportCard(Result $result): View|RedirectResponse
+    public function reportCard(Result $result, BuildStudentReportCard $reportCard): View|RedirectResponse
     {
         /** @var User $user */
         $user = Auth::user();
@@ -100,9 +107,8 @@ class StudentPortalController extends Controller
         if ($user->must_change_password) return redirect()->route('student.password.edit');
         $student = $user->student()->firstOrFail();
         abort_unless($result->student_id === $student->id && $result->status === 'published', 404);
-        $result->load(['student','exam.examType','exam.term','exam.section']);
-        $result->exam->load(['subjects'=>fn($q)=>$q->with(['subject','components.marks'=>fn($m)=>$m->where('student_id',$student->id)->where('status','verified')])]);
-        return view('student.report-card', compact('result'));
+        $card = $reportCard->build($result);
+        return view('student.report-card', compact('result', 'card'));
     }
 
     public function editPassword(): View|RedirectResponse

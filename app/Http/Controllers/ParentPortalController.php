@@ -5,6 +5,7 @@ use App\Models\Result;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\StudentAttendanceReport;
+use App\Services\BuildStudentReportCard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,5 +20,5 @@ class ParentPortalController extends Controller {
  public function updatePassword(Request $request):RedirectResponse { $user=$this->parentUser();$data=$request->validate(['current_password'=>['required','current_password:web'],'password'=>['required','string','min:12','confirmed','different:current_password']]);$user->update(['password'=>$data['password'],'must_change_password'=>false]);AuditEvent::record('parent.password_changed',$user);$request->session()->regenerate();return redirect()->route('parent.dashboard')->with('status','Password updated.'); }
  public function logout(Request $request):RedirectResponse { Auth::logout();$request->session()->invalidate();$request->session()->regenerateToken();return redirect()->route('parent.login'); }
  private function parentUser():User { $user=Auth::user();abort_unless($user instanceof User&&$user->hasRole('PARENT')&&$user->parentProfile()->exists(),403);return $user; }
- private function renderReportCard(Result $result):View { $result->load(['student','exam.examType','exam.term','exam.section']);$result->exam->load(['subjects'=>fn($q)=>$q->with(['subject','components.marks'=>fn($m)=>$m->where('student_id',$result->student_id)->where('status','verified')])]);return view('student.report-card',compact('result')); }
+ private function renderReportCard(Result $result):View { $card=app(BuildStudentReportCard::class)->build($result);return view('student.report-card',compact('result','card')); }
 }
