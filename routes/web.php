@@ -1,19 +1,34 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdmissionApplicationController;
+use App\Http\Controllers\AdmissionApplicationReportController;
+use App\Http\Controllers\AttendanceReportController;
+use App\Http\Controllers\ParentPortalController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\TeacherPortalController;
-use App\Http\Controllers\ParentPortalController;
-use App\Http\Controllers\AttendanceReportController;
+use App\Models\SchoolSetting;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    $schoolName = \App\Models\SchoolSetting::query()->value('name') ?? 'Madrasaa Ifaa Islaamaa';
+    $schoolName = SchoolSetting::query()->value('name') ?? 'Madrasaa Ifaa Islaamaa';
 
     return view('welcome', ['schoolName' => $schoolName]);
 });
+Route::get('lang/{locale}', function (string $locale) {
+    if (in_array($locale, ['om', 'en'])) {
+        session(['locale' => $locale]);
+    }
+
+    return back();
+})->name('lang.switch');
 Route::get('/admin/attendance-report.csv', [AttendanceReportController::class, 'downloadCsv'])->middleware('auth:web')->name('admin.attendance-report');
 Route::middleware('auth:web')->group(function (): void {
+    Route::get('/admin/admission-applications/{application}/files/{field}', [AdmissionApplicationController::class, 'downloadDocument'])
+        ->name('admin.admission-applications.download');
+    Route::get('/admin/admission-applications/reports/print', [AdmissionApplicationReportController::class, 'show'])
+        ->name('admin.admission-applications.report');
+    Route::get('/admin/admission-applications/reports/export.xlsx', [AdmissionApplicationReportController::class, 'downloadXlsx'])
+        ->name('admin.admission-applications.report.xlsx');
     Route::get('/attendance/reports', [AttendanceReportController::class, 'show'])->name('attendance.reports.show');
     Route::get('/attendance/reports/export/{format}', [AttendanceReportController::class, 'download'])->name('attendance.reports.download');
 });

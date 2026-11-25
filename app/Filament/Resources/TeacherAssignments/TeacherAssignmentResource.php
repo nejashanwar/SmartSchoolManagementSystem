@@ -2,29 +2,36 @@
 
 namespace App\Filament\Resources\TeacherAssignments;
 
-use App\Models\Section;
 use App\Models\ExamSubject;
+use App\Models\Section;
 use App\Models\Subject;
 use App\Models\TeacherAssignment;
 use App\Models\TeacherProfile;
 use App\Models\Term;
 use BackedEnum;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
 use UnitEnum;
 
 class TeacherAssignmentResource extends Resource
 {
     protected static ?string $model = TeacherAssignment::class;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+
     protected static string|UnitEnum|null $navigationGroup = 'Staff';
+
     protected static ?string $navigationLabel = 'Teacher assignments';
+
     protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
@@ -43,6 +50,7 @@ class TeacherAssignmentResource extends Resource
                 ->label('Semester')
                 ->options(function ($get): array {
                     $section = $get('section_id') ? Section::query()->find($get('section_id')) : null;
+
                     return $section
                         ? Term::query()->where('academic_year_id', $section->academic_year_id)->orderBy('sort_order')->pluck('name', 'id')->all()
                         : [];
@@ -50,6 +58,7 @@ class TeacherAssignmentResource extends Resource
                 ->required()->searchable()
                 ->rules(function ($get): array {
                     $section = $get('section_id') ? Section::query()->find($get('section_id')) : null;
+
                     return [$section
                         ? Rule::exists('terms', 'id')->where('academic_year_id', $section->academic_year_id)
                         : Rule::exists('terms', 'id')];
@@ -65,14 +74,22 @@ class TeacherAssignmentResource extends Resource
     {
         return $table->columns([
             TextColumn::make('teacherProfile.user.name')->label('Teacher')->searchable(),
-            TextColumn::make('section.academicYear.name')->label('Year'),
-            TextColumn::make('term.name')->label('Semester'),
-            TextColumn::make('section.grade.name')->label('Grade'),
-            TextColumn::make('section.name')->label('Section'),
+            TextColumn::make('section.academicYear.name')->label('Year')->searchable(),
+            TextColumn::make('term.name')->label('Semester')->searchable(),
+            TextColumn::make('section.grade.name')->label('Grade')->searchable(),
+            TextColumn::make('section.name')->label('Section')->searchable(),
             TextColumn::make('subject.name')->label('Subject')->searchable(),
         ])->recordActions([
-            \Filament\Actions\EditAction::make(),
-            \Filament\Actions\DeleteAction::make(),
+            EditAction::make(),
+            DeleteAction::make(),
+        ])->filters([
+            SelectFilter::make('teacher_profile_id')
+                ->label('Teacher')
+                ->options(fn (): array => TeacherProfile::query()->with('user')->get()->mapWithKeys(fn (TeacherProfile $teacher): array => [$teacher->id => $teacher->user->name])->all())
+                ->searchable()->preload(),
+            SelectFilter::make('section_id')->relationship('section', 'name')->searchable()->preload(),
+            SelectFilter::make('term_id')->relationship('term', 'name')->label('Semester')->searchable()->preload(),
+            SelectFilter::make('subject_id')->relationship('subject', 'name')->searchable()->preload(),
         ])->toolbarActions([]);
     }
 
@@ -90,7 +107,9 @@ class TeacherAssignmentResource extends Resource
         return ! ExamSubject::query()->where('subject_id', $record->subject_id)
             ->whereHas('exam', function ($query) use ($record): void {
                 $query->where('section_id', $record->section_id);
-                if ($record->term_id) $query->where('term_id', $record->term_id);
+                if ($record->term_id) {
+                    $query->where('term_id', $record->term_id);
+                }
             })
             ->exists();
     }

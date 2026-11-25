@@ -8,6 +8,21 @@
                 @endforeach
             </select>
         </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px;">
+            <div style="min-width: 240px; flex: 1;">
+                <label for="marks-student-search" style="display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600;">Search student</label>
+                <input id="marks-student-search" type="search" wire:model.live.debounce.300ms="search" placeholder="Name or student ID" style="width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: white; color: #111827;">
+            </div>
+            <div style="min-width: 220px;">
+                <label for="marks-student-filter" style="display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600;">Student marks</label>
+                <select id="marks-student-filter" wire:model.live="studentFilter" style="width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: white; color: #111827;">
+                    <option value="all">All students</option>
+                    <option value="incomplete">Incomplete marks</option>
+                    <option value="ready">Ready for verification</option>
+                    <option value="verified">Verified</option>
+                </select>
+            </div>
+        </div>
 
         @if (! $exam)
             <div style="padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: white; color: #4b5563;">No examinations with subjects are available yet.</div>

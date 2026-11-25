@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Models\AuditEvent;
 use App\Models\TeacherProfile;
 use App\Models\User;
-use Illuminate\Support\ServiceProvider;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Table;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Events\PermissionAttachedEvent;
 use Spatie\Permission\Events\PermissionDetachedEvent;
 use Spatie\Permission\Events\RoleAttachedEvent;
@@ -29,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Table::configureUsing(function (Table $table): void {
+            $table->filtersLayout(FiltersLayout::AboveContentCollapsible);
+        });
+
         Event::listen(RoleAttachedEvent::class, function (RoleAttachedEvent $event): void {
             if (app()->runningInConsole()) {
                 return;

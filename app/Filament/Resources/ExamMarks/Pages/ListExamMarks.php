@@ -3,10 +3,11 @@
 namespace App\Filament\Resources\ExamMarks\Pages;
 
 use App\Filament\Resources\ExamMarks\ExamMarkResource;
+use App\Models\AuditEvent;
 use App\Models\Exam;
 use App\Models\ExamMark;
-use App\Models\AuditEvent;
 use App\Models\Result;
+use App\Models\Student;
 use App\Models\User;
 use App\Services\GenerateExamResults;
 use App\Services\TermMarksWorkflow;
@@ -25,6 +26,10 @@ class ListExamMarks extends Page
     protected static ?string $title = 'Exam Marks';
 
     public ?int $examId = null;
+
+    public string $search = '';
+
+    public string $studentFilter = 'all';
 
     public function verifyStudentMarks(int $studentId): void
     {
@@ -76,6 +81,7 @@ class ListExamMarks extends Page
             });
         } catch (ValidationException $exception) {
             Notification::make()->warning()->title('Marks were not verified')->body(collect($exception->errors())->flatten()->implode(' '))->send();
+
             return;
         }
 
@@ -85,6 +91,7 @@ class ListExamMarks extends Page
 
         if (! $allRegistersApproved) {
             Notification::make()->success()->title('Student marks verified')->body('Other students’ marks still need review before results can be calculated.')->send();
+
             return;
         }
 
@@ -130,12 +137,20 @@ class ListExamMarks extends Page
         $components = $exam->subjects
             ->flatMap(fn ($examSubject) => $examSubject->components->map(function ($component) use ($examSubject) {
                 $component->setRelation('examSubject', $examSubject);
+
                 return $component;
             }))
             ->values();
 
-        $students = \App\Models\Student::query()
+        $students = Student::query()
             ->where('section_id', $exam->section_id)
+            ->when(trim($this->search) !== '', function ($query): void {
+                $search = trim($this->search);
+                $query->where(function ($query) use ($search): void {
+                    $query->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('admission_number', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('full_name')
             ->get(['id', 'full_name', 'admission_number']);
 
@@ -144,6 +159,23 @@ class ListExamMarks extends Page
             ->whereIn('student_id', $students->pluck('id'))
             ->get(['student_id', 'assessment_component_id', 'marks_obtained', 'status'])
             ->keyBy(fn ($mark) => $mark->student_id.'-'.$mark->assessment_component_id);
+
+        if ($this->studentFilter !== 'all') {
+            $students = $students->filter(function ($student) use ($components, $marks): bool {
+                $studentMarks = $components->map(fn ($component) => $marks->get($student->id.'-'.$component->id));
+                $hasSubmittedMarks = $studentMarks->isNotEmpty()
+                    && $studentMarks->every(fn ($mark): bool => $mark && in_array($mark->status, ['submitted', 'verified'], true));
+                $allMarksVerified = $hasSubmittedMarks
+                    && $studentMarks->every(fn ($mark): bool => $mark->status === 'verified');
+
+                return match ($this->studentFilter) {
+                    'verified' => $allMarksVerified,
+                    'ready' => $hasSubmittedMarks && ! $allMarksVerified,
+                    'incomplete' => ! $hasSubmittedMarks,
+                    default => true,
+                };
+            })->values();
+        }
 
         $subjectAverages = [];
         foreach ($students as $student) {

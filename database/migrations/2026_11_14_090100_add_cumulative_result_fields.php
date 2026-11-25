@@ -22,9 +22,15 @@ return new class extends Migration
     {
         Schema::table('results', function (Blueprint $table): void {
             $columns = [];
-            if (Schema::hasColumn('results', 'cumulative_average_percentage')) $columns[] = 'cumulative_average_percentage';
-            if (Schema::hasColumn('results', 'cumulative_rank')) $columns[] = 'cumulative_rank';
-            if ($columns !== []) $table->dropColumn($columns);
+            if (Schema::hasColumn('results', 'cumulative_average_percentage')) {
+                $columns[] = 'cumulative_average_percentage';
+            }
+            if (Schema::hasColumn('results', 'cumulative_rank')) {
+                $columns[] = 'cumulative_rank';
+            }
+            if ($columns !== []) {
+                $table->dropColumn($columns);
+            }
         });
     }
 };

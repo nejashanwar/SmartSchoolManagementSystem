@@ -5,6 +5,7 @@ namespace App\Filament\Resources\TeacherProfiles\Tables;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class TeacherProfilesTable
@@ -18,6 +19,11 @@ class TeacherProfilesTable
                 TextColumn::make('phone')->searchable()->toggleable(),
                 TextColumn::make('joined_on')->date()->sortable(),
                 TextColumn::make('employment_status')->badge(),
+            ])
+            ->filters([
+                SelectFilter::make('employment_status')
+                    ->label('Employment status')
+                    ->options(['active' => 'Active', 'inactive' => 'Inactive']),
             ])
             ->recordActions([ViewAction::make(), EditAction::make()])
             ->toolbarActions([]);

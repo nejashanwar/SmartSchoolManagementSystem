@@ -1,0 +1,53 @@
+{
+    "Student admission application": "Iyyannoo Galmee Barataa",
+    "Complete the form during the registration period. Submitting an application does not guarantee admission.": "Foormii kana yeroo galmee keessatti guuti. Iyyannoo erguun fudhatamuu hin mirkaneessu.",
+    "Please correct the highlighted form information and submit again.": "Maaloo odeeffannoo foormii dogoggora qabu sirreessii irra deebi'ii ergi.",
+
+    "Student information": "Odeeffannoo Barataa",
+    "First name": "Maqaa jalqabaa",
+    "Father name": "Maqaa abbaa",
+    "Grandfather name ": "Maqaa akaakayyuu ",
+    "Gender ": "Koorniyaa",
+    "Date of birth ": "Guyyaa dhaloota ",
+    "Place of birth ": "Iddoo dhaloota ",
+    "Nationality ": "Lammummaa ",
+    "Choose a nationality": "Lammummaa filadhu",
+    "Region": "Naannoo",
+    "Choose a region": "Naannoo filadhu",
+    "Zone": "Godina",
+    "Choose a zone": "Godina filadhu",
+    "Woreda": "Aanaa",
+    "Choose a woreda": "Aanaa filadhu",
+    "Student photo (JPG, PNG, or WebP; up to 2 MB)": "Suuraa barataa (JPG, PNG, ykn WebP; hanga 2 MB)",
+
+    "Address": "Teessoo",
+    "Zone / woreda ": "Godina / Aanaa ",
+    "Kebele ": "Ganda ",
+    "Student address (optional)": "Teessoo barataa (filannoo)",
+
+    "Parent or guardian": "Maatii ykn Eegduu",
+    "Parent or guardian full name": "Maqaa guutuu maatii ykn eegduu",
+    "Parent or guardian phone": "Lakkoofsa bilbilaa maatii ykn eegduu",
+    "Parent or guardian email (optional)": "Imeelii maatii ykn eegduu (filannoo)",
+    "Relationship (optional)": "Hariiroo barataa waliin qabu (filannoo)",
+    "Occupation (optional)": "Hojii (filannoo)",
+    "Guardian address (optional)": "Teessoo eegduu (filannoo)",
+    "Emergency contact name (optional)": "Maqaa nama yeroo hatattamaa waamamu (filannoo)",
+    "Emergency contact phone (optional)": "Lakkoofsa bilbilaa nama yeroo hatattamaa waamamu (filannoo)",
+
+    "Previous school and health": "Mana barumsaa duraanii fi fayyaa",
+    "Previous school (optional)": "Mana barumsaa duraanii (filannoo)",
+    "Previous grade (optional)": "Kutaa duraanii (filannoo)",
+    "Reason for transfer (optional)": "Sababa ce'umsaa (filannoo)",
+    "Health notes (optional)": "Yaadannoo fayyaa (filannoo)",
+    "Birth certificate (PDF, JPG, or PNG; up to 2 MB)": "Waraqaa ragaa dhalootaa (PDF, JPG, ykn PNG; hanga 2 MB)",
+    "Previous transcript (PDF, JPG, or PNG; up to 2 MB)": "Ragaa qabxii duraanii (PDF, JPG, ykn PNG; hanga 2 MB)",
+
+    "Admission requested": "Galmee gaafatame",
+    "Applying grade": "Kutaa iyyatame",
+    "Choose a grade": "Kutaa filadhu",
+    "Academic year": "Waggaa barnootaa",
+    "Choose an academic year": "Waggaa barnootaa filadhu",
+
+    "Submit application": "Iyyannoo ergi"
+}

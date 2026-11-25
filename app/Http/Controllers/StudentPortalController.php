@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AuditEvent;
 use App\Models\Exam;
 use App\Models\Result;
-use App\Services\StudentAttendanceReport;
-use App\Services\BuildStudentReportCard;
 use App\Models\User;
+use App\Services\BuildStudentReportCard;
+use App\Services\StudentAttendanceReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -93,9 +93,12 @@ class StudentPortalController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_unless($user->hasRole('STUDENT'), 403);
-        if ($user->must_change_password) return redirect()->route('student.password.edit');
+        if ($user->must_change_password) {
+            return redirect()->route('student.password.edit');
+        }
         $student = $user->student()->firstOrFail();
         $report = $attendanceReport->for($student, $request->query('month'));
+
         return view('student.attendance-report', compact('student', 'report'));
     }
 
@@ -104,10 +107,13 @@ class StudentPortalController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_unless($user->hasRole('STUDENT'), 403);
-        if ($user->must_change_password) return redirect()->route('student.password.edit');
+        if ($user->must_change_password) {
+            return redirect()->route('student.password.edit');
+        }
         $student = $user->student()->firstOrFail();
         abort_unless($result->student_id === $student->id && $result->status === 'published', 404);
         $card = $reportCard->build($result);
+
         return view('student.report-card', compact('result', 'card'));
     }
 

@@ -22,7 +22,7 @@ class AccessControlSeeder extends Seeder
             'ViewAny:AuditEvent', 'View:AuditEvent',
             'ViewAny:Grade', 'View:Grade', 'Create:Grade', 'Update:Grade', 'Delete:Grade', 'DeleteAny:Grade',
             'ViewAny:AcademicYear', 'View:AcademicYear', 'Create:AcademicYear', 'Update:AcademicYear', 'Delete:AcademicYear', 'DeleteAny:AcademicYear',
-            'ViewAny:AdmissionApplication', 'View:AdmissionApplication', 'Review:AdmissionApplication',
+            'ViewAny:AdmissionApplication', 'View:AdmissionApplication', 'Review:AdmissionApplication', 'Update:AdmissionApplication',
             'ViewAny:Student', 'View:Student',
             'ViewAny:TeacherProfile', 'View:TeacherProfile', 'Update:TeacherProfile',
             'ViewAny:Term', 'View:Term', 'Create:Term', 'Update:Term', 'Delete:Term', 'DeleteAny:Term',

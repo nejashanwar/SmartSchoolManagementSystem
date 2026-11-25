@@ -6,6 +6,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class AcademicYearsTable
@@ -21,6 +22,11 @@ class AcademicYearsTable
                 TextColumn::make('admission_opens_at')->label('Registration opens')->dateTime(),
                 TextColumn::make('admission_closes_at')->label('Registration closes')->dateTime(),
                 IconColumn::make('is_active')->boolean(),
+            ])
+            ->filters([
+                SelectFilter::make('is_active')
+                    ->label('Status')
+                    ->options(['1' => 'Active', '0' => 'Inactive']),
             ])
             ->recordActions([ViewAction::make(), EditAction::make()])
             ->toolbarActions([]);

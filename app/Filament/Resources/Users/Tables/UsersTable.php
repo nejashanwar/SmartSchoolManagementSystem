@@ -7,8 +7,8 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class UsersTable
 {
@@ -54,6 +54,11 @@ class UsersTable
 
                         return $query->where('is_active', (bool) $data['value']);
                     }),
+                SelectFilter::make('roles')
+                    ->relationship('roles', 'name')
+                    ->label('Role')
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 ViewAction::make(),

@@ -1,0 +1,33 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+.fi-sidebar-nav {
+    @apply gap-y-5 px-4 py-6;
+}
+
+.fi-sidebar-nav-groups {
+    @apply gap-y-5;
+}
+
+.fi-sidebar-item-btn {
+    @apply rounded-xl py-1.5;
+    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover,
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:focus-visible {
+    @apply bg-primary-50 dark:bg-primary-950/30;
+    transform: translateY(-1px);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    @apply bg-primary-50 shadow-sm dark:bg-primary-950/30;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-sidebar-item-btn {
+        transition-duration: 0.01ms;
+    }
+}
