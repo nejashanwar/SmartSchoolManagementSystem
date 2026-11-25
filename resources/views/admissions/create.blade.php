@@ -241,6 +241,130 @@
             *,*::before,*::after{animation:none !important;transition:none !important}
             .reveal{opacity:1;transform:none}
         }
+
+        /* ===== TYPOGRAPHY: font-style, font-color, font-weight ===== */
+        :root{
+            --font-body:"Poppins",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Ethiopic",sans-serif;
+            --font-arabic:"Amiri","Noto Naskh Arabic","Traditional Arabic","Times New Roman",serif;
+            --heading:#14532d;
+            --body:#292524;
+            --soft:#57534e;
+            --placeholder:#a8a29e;
+        }
+        html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+        body{
+            font-family:var(--font-body);
+            font-size:1rem;
+            font-weight:400;
+            font-style:normal;
+            line-height:1.6;
+            color:var(--body);
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            text-rendering:optimizeLegibility;
+        }
+        button,input,select,textarea{font-family:var(--font-body)}
+
+        /* Arabic */
+        .ar{
+            font-family:var(--font-arabic);
+            font-weight:700;
+            font-style:normal;
+            line-height:1.9;
+            letter-spacing:0;
+            word-spacing:0;
+        }
+        .bismillah{font-size:clamp(1.6rem,4.5vw,2.3rem);color:var(--primary-dark);font-weight:700}
+
+        /* Brand */
+        .brand{font-size:1.15rem;font-weight:800}
+        .brand .name{
+            font-weight:800;
+            letter-spacing:-.01em;
+            -webkit-text-fill-color:transparent;
+        }
+        .pill{font-weight:600;font-size:.9rem;letter-spacing:.01em}
+
+        /* Heading */
+        .eyebrow{font-weight:700;font-size:.75rem;letter-spacing:.12em}
+        h1{
+            font-weight:800;
+            font-style:normal;
+            font-size:clamp(1.9rem,5.5vw,3.2rem);
+            line-height:1.2;
+            letter-spacing:-.02em;
+            padding-bottom:.1em;
+            -webkit-text-fill-color:transparent;
+        }
+        .note{
+            font-size:clamp(.95rem,2.4vw,1.05rem);
+            font-weight:400;
+            color:var(--soft);
+            line-height:1.75;
+        }
+
+        /* Fieldset & labels */
+        legend{
+            font-weight:700;
+            font-size:.98rem;
+            color:var(--heading);
+            letter-spacing:.01em;
+        }
+        label{
+            font-weight:600;
+            font-size:.92rem;
+            color:var(--heading);
+            line-height:1.4;
+        }
+
+        /* Inputs */
+        input,select,textarea{
+            font-size:1rem;
+            font-weight:400;
+            font-style:normal;
+            color:var(--body);
+            line-height:1.4;
+        }
+        input::placeholder,textarea::placeholder{color:var(--placeholder);font-weight:400;opacity:1}
+        select option{color:var(--body);background:#fff;font-weight:400}
+        select:invalid,select:has(option[value=""]:checked){color:var(--soft)}
+        input[type=date]{color:var(--body);min-height:2.9rem}
+        input[type=file]{font-size:.9rem;color:var(--soft)}
+        input[type=file]::file-selector-button{font-family:var(--font-body);font-size:.9rem;font-weight:700}
+        input:disabled,select:disabled{color:#78716c}
+
+        /* Messages */
+        .error{font-size:.85rem;font-weight:500;color:#b91c1c;line-height:1.4}
+        .alert{font-size:.95rem;font-weight:600;color:#991b1b}
+
+        /* Buttons */
+        button[type=submit]{font-size:1rem;font-weight:700;letter-spacing:.01em;color:#fff}
+        .back{font-size:.95rem;font-weight:600;color:var(--primary-dark)}
+
+        /* Du'aa */
+        .dua{font-size:clamp(1.4rem,4vw,1.7rem);color:var(--accent);font-weight:700}
+        .dua small{
+            font-family:var(--font-body);
+            font-size:.82rem;
+            font-weight:400;
+            font-style:italic;
+            color:var(--soft);
+            line-height:1.5;
+        }
+
+        /* Footer */
+        .site-footer{font-size:.9rem;font-weight:400;color:#d1fae5;line-height:1.7}
+        .site-footer .ar{font-size:1.4rem;font-weight:700;color:#fde68a}
+
+        /* Phone */
+        @media(max-width:600px){
+            .brand{font-size:1rem}
+            .brand .logo{width:2.1rem;height:2.1rem;font-size:1.1rem}
+            input,select,textarea{font-size:16px}
+            label{font-size:.9rem}
+            .pill{font-size:.82rem;padding:.45rem .7rem}
+            legend{font-size:.92rem}
+        }
     </style>
 </head>
 <body>
